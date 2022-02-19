@@ -1,0 +1,11 @@
+version: '3' 
+services:
+  health-checker:
+    build: .
+    container_name: health-checker
+    restart: unless-stopped
+    environment:
+        URLS: "https://google.com,https://yandex.ru"
+        TOKEN: TOKEN
+        CHAT_ID: CHAT_ID
+        DELAY: 60
