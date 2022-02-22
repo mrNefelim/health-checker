@@ -1,4 +1,4 @@
-module example/hello
+module health-checker
 
 go 1.17
 

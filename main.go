@@ -11,6 +11,10 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
 
+type Client struct {
+	bot *tgbotapi.BotAPI
+}
+
 func main() {
 	linksRaw, linksExists := os.LookupEnv("URLS")
 	token, tokenExists := os.LookupEnv("TOKEN")
@@ -20,7 +24,7 @@ func main() {
 	if !delayExists {
 		delayRaw = "10"
 	}
-	delay, _ := strconv.ParseInt(delayRaw, 10, 64)
+	delay, _ := strconv.Atoi(delayRaw)
 
 	if !linksExists {
 		log.Fatalln("Не задан список ссылок")
@@ -35,16 +39,27 @@ func main() {
 	}
 
 	var bot = New(token)
+	var links = strings.Split(linksRaw, ",")
+	for _, link := range links {
+		done := make(chan bool)
+		async(link, chatId, *bot, delay)
+		done <- true
+	}
+}
 
+func async(link string, chatId string, bot Client, delay int) {
+	var oldStatus = 200
 	for {
-		for _, link := range strings.Split(linksRaw, ",") {
-			var statusCode = makeRequest(strings.TrimSpace(string(link)))
-			if statusCode == 0 {
-				sendMessage("Сайт "+string(link)+" отдал невалидный ответ", string(chatId), *bot)
-			} else if statusCode != 200 {
-				sendMessage("Сайт "+string(link)+" отдает код "+strconv.Itoa(statusCode), string(chatId), *bot)
-			}
+		var statusCode = makeRequest(strings.TrimSpace(link))
+		if statusCode == 200 && oldStatus != 200 {
+			sendMessage("Сайт "+link+" снова в работе", chatId, bot)
+		} else if statusCode == 0 && oldStatus == 200 {
+			sendMessage("Сайт "+link+" отдал невалидный ответ", chatId, bot)
+		} else if statusCode != 200 && oldStatus == 200 {
+			sendMessage("Сайт "+link+" отдает код "+strconv.Itoa(statusCode), chatId, bot)
 		}
+		oldStatus = statusCode
+
 		time.Sleep(time.Duration(delay) * time.Second)
 	}
 }
@@ -82,8 +97,4 @@ func (c *Client) SendMessage(text string, chatId int64) error {
 	msg.ParseMode = "Markdown"
 	_, error := c.bot.Send(msg)
 	return error
-}
-
-type Client struct {
-	bot *tgbotapi.BotAPI
 }
