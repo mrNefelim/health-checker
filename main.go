@@ -41,13 +41,11 @@ func main() {
 	var bot = New(token)
 	var links = strings.Split(linksRaw, ",")
 	for _, link := range links {
-		done := make(chan bool)
-		async(link, chatId, *bot, delay)
-		done <- true
+		go checkStatus(link, chatId, *bot, delay)
 	}
 }
 
-func async(link string, chatId string, bot Client, delay int) {
+func checkStatus(link string, chatId string, bot Client, delay int) {
 	var oldStatus = 200
 	for {
 		var statusCode = makeRequest(strings.TrimSpace(link))
